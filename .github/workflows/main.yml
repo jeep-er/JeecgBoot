@@ -1,0 +1,41 @@
+# 工作流名称
+name: Auto Sync JeecgBoot Main Branch
+
+# 触发规则：定时+手动
+on:
+  schedule:
+    # 每天北京时间10:10执行（UTC 2:10）
+    - cron: '10 2 * * *'
+  workflow_dispatch: # 手动触发按钮
+
+jobs:
+  sync-main:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 拉取自己仓库的main分支（仅拉取main，更高效）
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 仍需拉取完整提交历史（合并必需）
+          ref: main       # 明确指定只拉取main分支
+          persist-credentials: false
+
+      # 2. 添加官方上游仓库，仅拉取main分支
+      - name: Add upstream and fetch main
+        run: |
+          git remote add upstream https://github.com/jeecgboot/jeecgBoot.git
+          git fetch upstream main  # 只拉取官方的main分支，节省时间
+
+      # 3. 合并官方main到自己的main分支
+      - name: Merge upstream main
+        run: |
+          git checkout main
+          # 优先用官方代码解决冲突，仅合并main分支
+          git merge upstream/main -X theirs
+
+      # 4. 推回自己的main分支
+      - name: Push to my main branch
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main  # 明确推送到main分支
